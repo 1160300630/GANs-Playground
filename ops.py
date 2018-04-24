@@ -22,6 +22,7 @@ def flatten_fully_connected(inputs,
     with tf.variable_scope(scope, 'flatten_fully_connected', [inputs]):
         if inputs.shape.ndims > 2:
             inputs = slim.flatten(inputs)
+        # Doesn't the normalizer_fn-activation_fn 's order matters?
         return slim.fully_connected(inputs,
                                     num_outputs,
                                     activation_fn,
