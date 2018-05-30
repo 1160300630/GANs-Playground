@@ -20,10 +20,10 @@
 - WGAN-GP的理想loss变化是什么样的？
 
 #### Result:
-![Alt text](https://github.com/1160300630/Comics-Generate/raw/master/images/AC-GAN(WGAN-GP loss).jpg)
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/AC-GAN(WGAN-GP%20loss).jpg)
 
 
 ### 3. WGAN-GP in mnist
 
 #### Result:
-![Alt text](https://github.com/1160300630/Comics-Generate/raw/master/images/WGAN-GP.jpg)
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/WGAN-GP.jpg)
