@@ -44,32 +44,6 @@ def discriminator(img, dim=64, reuse=True, training=True):
         return logit
 
 # WGAN-GP 28 x 28
-def generator_WGAN(z, dim=64, reuse=True, training=True):
-    bn = partial(batch_norm, is_training=training)
-    fc_bn_relu = partial(fc, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
-    dconv_bn_relu = partial(dconv, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
-    dconv_tanh = partial(dconv, activation_fn=tanh, biases_initializer=None)
-
-    with tf.variable_scope('generator', reuse=reuse):
-        y = fc_bn_relu(z, 1024)
-        y = fc_bn_relu(y, 7 * 7 * dim * 2)
-        y = tf.reshape(y, [-1, 7, 7, dim * 2])
-        y = dconv_bn_relu(y, dim * 2, 5, 2)
-        img = tanh(dconv(y, 1, 5, 2))
-        return img
-
-def discriminator_WGAN(img, dim=64, reuse=True, training=True):
-    conv_ln_lrelu = partial(conv, normalizer_fn=ln, activation_fn=lrelu, biases_initializer=None)
-    fc_ln_lrelu = partial(fc, normalizer_fn=ln, activation_fn=lrelu)
-
-    with tf.variable_scope('discriminator', reuse=reuse):
-        y = tf.reshape(img, [-1, 28, 28, 1])
-        y = lrelu(conv(y, 1, 5, 2))
-        y = conv_ln_lrelu(y, dim, 5, 2)
-        y = fc_ln_lrelu(y, 1024)
-        logits = fc(y, 1)
-        return logits
-
 def generator_231(z, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)
     fc_lrelu = partial(fc, activation_fn=lrelu)
@@ -96,95 +70,43 @@ def discriminator_WGAN_231(img, dim=64, reuse=True, training=True):
         logits = fc(y, 1)
         return logits
 
-def discriminator_DCGAN_231(img, dim=64, reuse=True, training=True):
-    fc_lrelu = partial(fc, activation_fn=lrelu)
-    conv_lrelu = partial(conv, activation_fn=lrelu)
-    pool = partial(tf.nn.max_pool, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
-
-    with tf.variable_scope('discriminator', reuse=reuse):
-        y = tf.reshape(img, [-1, 28, 28, 1])
-        y = pool(conv_lrelu(y, 32, 5, 1))
-        y = pool(conv_lrelu(y, dim, 5, 1))
-        y = fc_lrelu(y, 1024)
-        logits = fc(y, 1)
-        return logits
-
-# Conditional WGAN-GP 28 x 28
-def generator_C_GAN(z, t, dim=64, reuse=True, training=True):
+def generator_AC_GAN(z, t, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)
-    fc_bn_relu = partial(fc, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
+    fc_relu = partial(fc, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
     dconv_bn_relu = partial(dconv, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
     dconv_tanh = partial(dconv, activation_fn=tanh, biases_initializer=None)
 
     with tf.variable_scope('generator', reuse=reuse):
-        h = fc_bn_relu(t, z.shape[1])
-        y = tf.concat((z, h), axis=0)
-        y = fc_bn_relu(y, 1024)
-        y = fc_bn_relu(y, 7 * 7 * dim * 2)
+        t = bn(fc_relu(t, 256))
+        z = bn(fc_relu(z, 256))
+        y = tf.concat((z, t), axis=1)
+        y = bn(fc_relu(y, 1024))
+        y = bn(fc_relu(y, 7 * 7 * dim * 2))
         y = tf.reshape(y, [-1, 7, 7, dim * 2])
-        y = dconv_bn_relu(y, dim * 2, 5, 2)
-        img = tanh(dconv(y, 1, 5, 2))
+        y = dconv_bn_relu(y, dim, 4, 2)
+        img = tf.nn.tanh(dconv(y, 1, 4, 2))
         return img
 
 
-def discriminator_C_WGAN(img, t, dim=64, reuse=True, training=True):
-    conv_ln_lrelu = partial(conv, normalizer_fn=ln, activation_fn=lrelu, biases_initializer=None)
-    fc_ln_lrelu = partial(fc, normalizer_fn=ln, activation_fn=lrelu)
-    dconv_bn_relu = partial(dconv, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
-    fc_bn_sigmoid = partial(tf, normalizer_fn=bn, activation_fn=tf.sigmoid)
-
-    with tf.variable_scope('discriminator', reuse=reuse):
-        h = fc_bn_sigmoid(t, 14)
-        h = dconv_bn_relu(h, 1, 5, 2)
-        y = tf.reshape(img, [-1, 28, 28, 1])
-        y = tf.concat((img, h), axis=0)
-        y = lrelu(conv(y, 1, 5, 2))
-        y = conv_ln_lrelu(y, dim, 4, 2)
-        y = fc_ln_lrelu(y, 1024)
-        logits = fc(y, 1)
-        return logits
-
-def generator_C_231(z, dim=64, reuse=True, training=True):
+def discriminator_AC_GAN(img, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)
-    fc_lrelu = partial(fc, activation_fn=lrelu)
-    dconv_relu = partial(dconv, activation_fn=relu)
-
-    with tf.variable_scope('generator', reuse=reuse):
-        h = fc_bn_relu(t, z.shape[1])
-        y = tf.concat((z, h), axis=0)
-        y = bn(fc_lrelu(z, 1024))
-        y = bn(fc_lrelu(y, 7 * 7 * dim * 2))
-        y = tf.resize(y, (-1, 7, 7, dim * 2))
-        y = bn(dconv_relu(y, dim, 4, 2))
-        y = tanh(dconv(y, 1, 4, 2))
-
-def discriminator_C_WGAN_231(img, dim=64, reuse=True, traning=True):
-    conv_lrelu = partial(conv, activation_fn=lrelu)
-    fc_lrelu = partial(fc, activation_fn=lrelu)
-
+    conv_lrelu = partial(conv, normalizer_fn=None, activation_fn=lrelu, biases_initializer=None)
+    fc_lrelu = partial(fc, normalizer_fn=None, activation_fn=lrelu)
+    
     with tf.variable_scope('discriminator', reuse=reuse):
-        h = fc_bn_sigmoid(t, 14)
-        h = dconv_bn_relu(h, 1, 5, 2)
         y = tf.reshape(img, [-1, 28, 28, 1])
-        y = tf.concat((img, h), axis=0)
-        y = conv_lrelu(y, dim, 4, 2)
+        y = lrelu(conv(y, dim, 4, 2))
         y = bn(conv_lrelu(y, dim*2, 4, 2))
         y = fc_lrelu(y, 1024)
         logits = fc(y, 1)
         return logits
 
-def discriminator_C_DCGAN_231(img, dim=64, reuse=True, training=True):
-    fc_lrelu = partial(fc, activation_fn=lrelu)
-    conv_lrelu = partial(conv, activation_fn=lrelu)
-    pool = partial(tf.nn.max_pool, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
-
-    with tf.variable_scope('discriminator', reuse=reuse):
-        h = fc_bn_sigmoid(t, 14)
-        h = dconv_bn_relu(h, 1, 5, 2)
-        y = tf.reshape(img, [-1, 28, 28, 1])
-        y = tf.concat((img, h), axis=0)
-        y = pool(conv_lrelu(y, 32, 5, 1))
-        y = pool(conv_lrelu(y, dim, 5, 1))
-        y = fc_lrelu(y, 1024)
-        logits = fc(y, 1)
+def classifier_AC_GAN(img, dim=64, reuse=True, training=True):
+    bn = partial(batch_norm, is_training=training)
+    fc_bn_lrelu = partial(fc, normalizer_fn=bn, activation_fn=lrelu)
+    
+    with tf.variable_scope('classifier', reuse=reuse):
+        y = fc_bn_lrelu(img, 1024)
+        y = fc_bn_lrelu(y, 512)
+        logits = fc(y, 10)
         return logits
