@@ -39,16 +39,14 @@
 
 #### Result:
 
-![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/WGAN-GP(vanilla, 100 epoch).jpg)
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/WGAN-GP(vanilla%2C%20100%20epoch).jpg)
 
 ###  5. AC-GAN(WGAN-GP loss)
 
 #### Result:
 
-![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c1.jpg)
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c1.PNG)
 
-![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c2.jpg)
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c2.PNG)
 
-![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c3.jpg)
-
-### 
+![Alt text](https://github.com/1160300630/GANs-Playground/blob/master/images/c3.PNG)
