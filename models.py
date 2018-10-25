@@ -20,26 +20,61 @@ tanh = tf.tanh
 # WGAN-GP 64 x 64
 def generator(z, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)
-    dconv_bn_relu = partial(dconv, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
-    fc_bn_relu = partial(fc, normalizer_fn=bn, activation_fn=relu, biases_initializer=None)
+    dconv_relu = partial(dconv, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
+    fc_relu = partial(fc, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
 
     with tf.variable_scope('generator', reuse=reuse):
-        y = fc_bn_relu(z, 4 * 4 * dim * 8)
+        y = bn(fc_relu(z, 4 * 4 * dim * 8))
         y = tf.reshape(y, [-1, 4, 4, dim * 8])
-        y = dconv_bn_relu(y, dim * 4, 5, 2)
-        y = dconv_bn_relu(y, dim * 2, 5, 2)
-        y = dconv_bn_relu(y, dim * 1, 5, 2)
+        y = bn(dconv_relu(y, dim * 4, 5, 2))
+        y = bn(dconv_relu(y, dim * 2, 5, 2))
+        y = bn(dconv_relu(y, dim * 1, 5, 2))
         img = tanh(dconv(y, 3, 5, 2))
         return img
 
 def discriminator(img, dim=64, reuse=True, training=True):
-    conv_ln_lrelu = partial(conv, normalizer_fn=ln, activation_fn=lrelu, biases_initializer=None)
+    conv_lrelu = partial(conv, normalizer_fn=None, activation_fn=lrelu, biases_initializer=None)
 
     with tf.variable_scope('discriminator', reuse=reuse):
         y = lrelu(conv(img, dim, 5, 2))
-        y = conv_ln_lrelu(y, dim * 2, 5, 2)
-        y = conv_ln_lrelu(y, dim * 4, 5, 2)
-        y = conv_ln_lrelu(y, dim * 8, 5, 2)
+        y = ln(conv_lrelu(y, dim * 2, 5, 2))
+        y = ln(conv_lrelu(y, dim * 4, 5, 2))
+        y = ln(conv_lrelu(y, dim * 8, 5, 2))
+        logit = fc(y, 1)
+        return logit
+
+def generator_AC_GAN_64_64(z, t, dim=64, reuse=True, training=True):
+    bn = partial(batch_norm, is_training=training)
+    dconv_relu = partial(dconv, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
+    fc_relu = partial(fc, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
+
+    with tf.variable_scope('generator', reuse=reuse):
+        t = fc_relu(t, 256)
+        y = tf.concat((z, t), axis=1)
+        y = tf.nn.relu(bn(fc(y, 4*4*8*dim)))
+        y = tf.reshape(y, [-1, 4, 4, dim * 8])
+        y = tf.nn.relu(bn(dconv(y, dim * 4, 5, 2)))
+        y = tf.nn.relu(bn(dconv(y, dim * 2, 5, 2)))
+        y = tf.nn.relu(bn(dconv(y, dim * 1, 5, 2)))
+        img = tanh(dconv(y, 3, 5, 2))
+        return img
+
+def discriminator_AC_GAN_64_64(img, t, dim=64, reuse=True, training=True):
+    bn = partial(batch_norm, is_training=training)
+    conv_lrelu = partial(conv, normalizer_fn=None, activation_fn=lrelu, biases_initializer=None)
+    fc_relu = partial(fc, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
+
+    with tf.variable_scope('discriminator', reuse=reuse):
+        t = fc_relu(t, dim * 4)
+        t = tf.reshape(t, [-1, 1, 1, dim * 4])
+        t = tf.tile(t, multiples=[1, 4, 4, 1])
+        t = conv_lrelu(t, dim, 5)
+        y = lrelu(conv(img, dim, 5, 2))
+        y = lrelu(bn(conv(y, dim * 2, 5, 2)))
+        y = lrelu(bn(conv_lrelu(y, dim * 4, 5, 2)))
+        y = lrelu(bn(conv_lrelu(y, dim * 8, 5, 2)))
+        y = tf.concat((y, t), axis=3)
+        y = conv(y, dim * 8, 1, 1)
         logit = fc(y, 1)
         return logit
 
@@ -70,6 +105,8 @@ def discriminator_WGAN_231(img, dim=64, reuse=True, training=True):
         logits = fc(y, 1)
         return logits
 
+
+# ACGAN 28 x 28
 def generator_AC_GAN(z, t, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)
     fc_relu = partial(fc, normalizer_fn=None, activation_fn=relu, biases_initializer=None)
@@ -100,6 +137,31 @@ def discriminator_AC_GAN(img, dim=64, reuse=True, training=True):
         y = fc_lrelu(y, 1024)
         logits = fc(y, 1)
         return logits
+
+def discriminator_AC_GAN_2(img, dim=64, reuse=True, training=True):
+    bn = partial(batch_norm, is_training=training)
+    conv_lrelu = partial(conv, normalizer_fn=None, activation_fn=lrelu, biases_initializer=None)
+    fc_lrelu = partial(fc, normalizer_fn=None, activation_fn=lrelu)
+    fc_bn_lrelu = partial(fc, normalizer_fn=bn, activation_fn=lrelu)
+    
+    with tf.variable_scope('discriminator', reuse=reuse):
+        y = tf.reshape(img, [-1, 28, 28, 1])
+        y = lrelu(conv(y, dim, 4, 2))
+        feature = bn(conv_lrelu(y, dim*2, 4, 2))
+        y = fc_lrelu(feature, 1024)
+        logits = fc(y, 1)
+    return logits, feature
+
+def classifier_AC_GAN_2(feature, dim=64, reuse=True, training=True):
+    bn = partial(batch_norm, is_training=training)
+    fc_bn_lrelu = partial(fc, normalizer_fn=bn, activation_fn=lrelu)
+    
+    with tf.variable_scope('classifier', reuse=reuse):
+        y = fc_bn_lrelu(feature, 1024)
+        y = fc_bn_lrelu(y, 1024)
+        logits = fc(y, 10)
+        return logits
+
 
 def classifier_AC_GAN(img, dim=64, reuse=True, training=True):
     bn = partial(batch_norm, is_training=training)

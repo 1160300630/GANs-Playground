@@ -29,7 +29,6 @@ def disk_image_batch(image_paths, batch_size, shape, preprocess_fn=None, shuffle
         # dequeue a single image path adn read the image bytes; enqueue the whole file list
         _, img = tf.WholeFileReader().read(tf.train.string_input_producer(image_paths, shuffle=shuffle, capacity=data_num))
         img = tf.image.decode_image(img)
-
         # preprocessing
         img.set_shape(shape)
         if preprocess_fn is not None:
